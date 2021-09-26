@@ -18,8 +18,9 @@
 </head>
 <body>
     <div id="content">
-        <canvas id="canvas"></canvas><br/>
-        <input type="range" min="0" max="6" value="2" id="n">
+        <canvas id="canvas"></canvas>
+        <label id="nlabel" for="n">Hilbert Space:</label><input type="range" min="0" max="6" value="2" id="n">
+        <label id="plabel" for="p">Point:</label><input type="range" min="0" max="1" value="0.36" step="0.001" id="p">
     </div>
     <script>
         function hilbert(n, x) {
@@ -68,12 +69,18 @@
             canvas.style.width = wh;
             canvas.style.height = wh;
             canvas.style["margin-top"] = s * 0.025;
-            canvas.style["margin-bottom"] = s * 0.025;
+            canvas.style["margin-bottom"] = s * 0.01;
         }
 
-        function draw(n) {
-            let w = canvas.clientWidth;
-            let h = canvas.clientHeight;
+        let _n = document.getElementById("n");
+        let _p = document.getElementById("p");
+
+        function draw() {
+            let n = _n.value;
+            let p = _p.value;
+
+            let w = canvas.width;
+            let h = canvas.height;
             ctx.clearRect(0, 0, w, h);
 
             let l = 2 << (n)
@@ -97,26 +104,45 @@
             }
 
             ctx.stroke();
+
+            let ps = p * (len-1);
+
+            let [x1, y1] = hilbert(n, Math.floor(ps));
+            let [x2, y2] = hilbert(n, Math.ceil(ps));
+            let a = ps - Math.floor(ps);
+            x = x1 + (x2 - x1) * a;
+            y = y1 + (y2 - y1) * a;
+
+            ctx.beginPath();
+            ctx.fillStyle = "blue";
+            ctx.arc(sx*x+ox, sy*y+oy, 5, 0, 2 * Math.PI, true);
+            ctx.fill();
         }
 
-        let n = document.getElementById("n");
-
         // redraw on input change
-        n.addEventListener("input", function () {
-            draw(n.value);
+        _n.addEventListener("input", () => {
+            document.getElementById("nlabel").innerText = `Hilbert Space: ${_n.value}`
+            draw();
+        });
+        _p.addEventListener("input", () => {
+            document.getElementById("plabel").innerText = `Point: ${_p.value}`
+            draw();
         });
 
         // update canvas size and redraw on window resize
         window.addEventListener("resize", function () {
             setSize();
-            draw(n.value);
+            draw();
         });
 
         // mobile coordinates are weird. delay a little so the renderer has a chance to update properly
         setTimeout(() => {
             setSize();
-            draw(n.value);
+            draw();
         }, 200);
+
+        document.getElementById("nlabel").innerText = `Hilbert Space: ${_n.value}`
+        document.getElementById("plabel").innerText = `Point: ${_p.value}`
     </script>
 </body>
 </html>
