@@ -1,0 +1,120 @@
+<head>
+    <style>
+        #content {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        #canvas {
+            width: 95%;
+            height: 95%;
+            aspect-ratio: 1;
+        }
+    </style>
+</head>
+<body>
+    <div id="content">
+        <canvas id="canvas"></canvas><br/>
+        <input type="range" min="0" max="6" value="2" id="n">
+    </div>
+    <script>
+        function hilbert(n, x) {
+            if (n == 0) {
+                // base case, hard coded quadrants
+                return [[0, 0], [0, 1], [1, 1], [1, 0]][x];
+            } else {
+                // the first 2 bits represent the core quadrant
+                let [i, j] = hilbert(0, x >> (2*n));
+                i <<= n;
+                j <<= n;
+
+                // the remaining 2n bits represent the position in that quadrant
+                let bits = (1 << (2*n)) - 1;
+                let [ii, jj] = hilbert(n-1, x & bits);
+
+                // in order for the sub-hilbert curves to connect nicely,
+                // the lower left and lower right quadrants need to be flipped
+                switch (x >> (2*n)) {
+                case 0:
+                    tmp = jj;
+                    jj = ii;
+                    ii = tmp;
+                    break;
+                case 3:
+                    bits = (1 << n) - 1;
+                    tmp = jj;
+                    jj = bits - ii;
+                    ii = bits - tmp;
+                    break;
+                }
+
+                return [i | ii, j | jj];
+            }
+        }
+
+        let canvas = document.getElementById("canvas");
+        let ctx = canvas.getContext("2d");
+        let content = document.getElementById("content");
+
+        function setSize() {
+            let s = Math.min(content.clientWidth, content.clientHeight);
+            let wh = Math.floor(s * 0.95);
+            canvas.width = wh;
+            canvas.height = wh;
+            canvas.style.width = wh;
+            canvas.style.height = wh;
+            canvas.style["margin-top"] = s * 0.025;
+            canvas.style["margin-bottom"] = s * 0.025;
+        }
+
+        function draw(n) {
+            let w = canvas.clientWidth;
+            let h = canvas.clientHeight;
+            ctx.clearRect(0, 0, w, h);
+
+            let l = 2 << (n)
+            let len = 4 << (2*n);
+
+            // scale
+            let sx = w/l;
+            let sy = -h/l;
+            // offset
+            let ox = sx / 2;
+            let oy = h + sy / 2;
+
+            ctx.beginPath();
+            let [x, y] = hilbert(n, 0);
+            ctx.moveTo(sx*x+ox, sy*y+oy);
+
+            for (let i = 1; i < len; i++) {
+                let [x, y] = hilbert(n, i);
+
+                ctx.lineTo(sx*x+ox, sy*y+oy);
+            }
+
+            ctx.stroke();
+        }
+
+        let n = document.getElementById("n");
+
+        // redraw on input change
+        n.addEventListener("input", function () {
+            draw(n.value);
+        });
+
+        // update canvas size and redraw on window resize
+        content.addEventListener("resize", function () {
+            setSize();
+            draw(n.value);
+        });
+
+        // mobile coordinates are weird. delay a little so the renderer has a chance to update properly
+        setTimeout(() => {
+            setSize();
+            draw(n.value);
+        }, 200);
+    </script>
+</body>
