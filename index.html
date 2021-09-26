@@ -24,40 +24,6 @@
     </div>
     <script>
 
-        function hilbert(n, x) {
-            if (n == 0) {
-                // base case, hard coded quadrants
-                return [[0, 0], [0, 1], [1, 1], [1, 0]][x];
-            } else {
-                // the first 2 bits represent the core quadrant
-                let [i, j] = hilbert(0, x >> (2*n));
-                i <<= n;
-                j <<= n;
-
-                // the remaining 2n bits represent the position in that quadrant
-                let bits = (1 << (2*n)) - 1;
-                let [ii, jj] = hilbert(n-1, x & bits);
-
-                // in order for the sub-hilbert curves to connect nicely,
-                // the lower left and lower right quadrants need to be flipped
-                switch (x >> (2*n)) {
-                case 0:
-                    tmp = jj;
-                    jj = ii;
-                    ii = tmp;
-                    break;
-                case 3:
-                    bits = (1 << n) - 1;
-                    tmp = jj;
-                    jj = bits - ii;
-                    ii = bits - tmp;
-                    break;
-                }
-
-                return [i | ii, j | jj];
-            }
-        }
-
         let canvas = document.getElementById("canvas");
         let ctx = canvas.getContext("2d");
         let content = document.getElementById("content");
@@ -73,75 +39,64 @@
             canvas.style["margin-bottom"] = s * 0.01;
         }
 
+        let canvas2 = document.createElement("canvas");
+        let ctx2 = canvas2.getContext("2d");
+
         let _n = document.getElementById("n");
         let _p = document.getElementById("p");
 
-        let interval;
-
-        const BATCH = 256;
         function draw() {
-            if (interval) {
-                clearInterval(interval);
-                interval = undefined;
-            }
-
             let n = _n.value;
             let p = _p.value;
 
             let w = canvas.width;
             let h = canvas.height;
 
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.clearRect(0, 0, w, h);
+            canvas2.width = w;
+            canvas2.height = h;
 
-            let l = 2 << (n)
-            let len = 4 << (2*n);
+            ctx.setTransform(w, 0, 0, h, 0, 0);
+            ctx.clearRect(0, 0, 1, 1);
 
-            // scale
-            let sx = w/l;
-            let sy = h/l;
-            // offset
-            let ox = sx / 2;
-            let oy = sy / 2;
-
-            ctx.setTransform(sx, 0, 0, sy, ox, oy);
-            ctx.lineWidth = 0.1;
-
-            //ctx.translate(ox, oy);
-            //ctx.scale(sx, sy);
-
-            let ps = p * (len-1);
-
-            let [x1, y1] = hilbert(n, Math.floor(ps));
-            let [x2, y2] = hilbert(n, Math.ceil(ps));
-            let a = ps - Math.floor(ps);
-            let x = x1 + (x2 - x1) * a;
-            let y = y1 + (y2 - y1) * a;
+            ctx.transform(1/2, 0, 0, 1/2, 0, 0);
 
             ctx.beginPath();
-            ctx.fillStyle = "blue";
-            ctx.arc(x, y, 0.1, 0, 2 * Math.PI, true);
-            ctx.fill();
+            ctx.lineWidth = 0.05;
+            ctx.moveTo(0, 0.5);
+            ctx.lineTo(0.5, 0.5);
+            ctx.lineTo(0.5, 1.5);
+            ctx.lineTo(1.5, 1.5);
+            ctx.lineTo(1.5, 0);
+            ctx.stroke();
 
-            ctx.beginPath();
+            for (let i = 0; i < n; i++) {
+                ctx2.putImageData(ctx.getImageData(0, 0, w, h), 0, 0);
 
-            ctx.moveTo(0, 0);
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.clearRect(0, 0, w, h);
+                ctx.scale(0.5, 0.5)
 
-            let i = 1;
-            interval = setInterval(() => {
-                let max = Math.min(len, i + BATCH);
-                let x, y;
-                while (i < max) {
-                    [x, y] = hilbert(n, i++);
-                    ctx.lineTo(x, y);
-                }
+                ctx.drawImage(canvas2, w, h);
+
+                ctx.rotate(-Math.PI / 2);
+                ctx.drawImage(canvas2, -w, 0);
+
+                ctx.scale(1, -1)
+                ctx.drawImage(canvas2, -w, -2*h);
+
+                ctx.rotate(Math.PI / 2);
+                ctx.drawImage(canvas2, -w, h);
+
+                let shift = 3 + i;
+
+                ctx.setTransform(-w >> shift, 0, 0, h >> shift, w, 0);
+                ctx.clearRect(0, 0, 0.95, 2);
+                ctx.beginPath();
+                ctx.lineWidth = 0.1;
+                ctx.moveTo(1, 1);
+                ctx.lineTo(1, 0);
                 ctx.stroke();
-
-                if (i == len) {
-                    clearInterval(interval);
-                    interval = undefined;
-                }
-            }, 0);
+            }
         }
 
         // redraw on input change
@@ -155,10 +110,10 @@
         });
 
         // update canvas size and redraw on window resize
-        window.addEventListener("resize", function () {
-            setSize();
-            draw();
-        });
+        //window.addEventListener("resize", function () {
+        //    setSize();
+        //    draw();
+       // });
 
         // mobile coordinates are weird. delay a little so the renderer has a chance to update properly
         setTimeout(() => {
